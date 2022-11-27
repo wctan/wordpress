@@ -1,0 +1,51 @@
+import * as k8s from "@pulumi/kubernetes";
+
+const wordpress = new k8s.apps.v1.Deployment("wordpress", {
+    spec: {
+        selector: { matchLabels: { app: "wordpress", release: "example" } },
+        strategy: { type: "RollingUpdate" },
+        replicas: 1,
+        template: {
+            metadata: { labels: { app: "wordpress", release: "example" } },
+            spec: {
+                hostAliases: [ { ip: "127.0.0.1", hostnames: [ "status.localhost"] } ],
+                containers: [
+                    {
+                        name: "wordpress",
+                        image: "docker.io/bitnami/wordpress:5.2.4-debian-9-r0",
+                        imagePullPolicy: "IfNotPresent",
+                        env: [
+                            { name: "MARIADB_HOST", value: "mariadb" },
+                            { name: "WORDPRESS_DATABASE_NAME", value: "bitnami_wordpress" },
+                            { name: "WORDPRESS_DATABASE_USER", value: "bn_wordpress" },
+                            {
+                                name: "WORDPRESS_DATABASE_PASSWORD",
+                                valueFrom: {
+                                    secretKeyRef: {
+                                        name: mariadbSecret.metadata.name,
+                                        key: "mariadb-password"
+                                    }
+                                }
+                            },
+                            ...
+                        ],
+                        ports: [
+                            { name: "http", containerPort: 80 },
+                            { name: "https", containerPort: 443 }
+                        ],
+                        volumeMounts: [
+                            {
+                                mountPath: "/bitnami/wordpress",
+                                name: "wordpress-data",
+                                subPath: "wordpress"
+                            }
+                        ],
+                        resources: { requests: { cpu: "300m", memory: "512Mi" } }
+                        ...
+                    }
+                ],
+                ...
+            }
+        }
+    }
+}, { provider: provider });
